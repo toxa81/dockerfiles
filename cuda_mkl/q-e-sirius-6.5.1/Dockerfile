@@ -92,4 +92,5 @@ RUN cd q-e-sirius-6.5-rc3-sirius && \
     sed -i -e "s/BLAS_LIBS_SWITCH = internal/BLAS_LIBS_SWITCH = external/" make.inc && \
     sed -i -e "s/^DFLAGS\ *=\ *.*/DFLAGS = -D__MPI -D__SCALAPACK -D__DFTI -I\/usr\/local\/include\/sirius /" make.inc && \
     sed -i -e "s/^LD_LIBS\ *=\ *.*/LD_LIBS = -L\/usr\/local\/lib -lsirius -Wl,-rpath,\/usr\/local\/lib -L\$(MKLROOT)\/lib\/intel64 -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_gnu_thread -lmkl_core -lmkl_blacs_intelmpi_lp64 -fopenmp/" make.inc && \
+    sed -i -e "s/^FFLAGS\ *=\ *.*/FFLAGS = -O3 -g -fopenmp -march=haswell /" make.inc && \
     make -j 12 pw
