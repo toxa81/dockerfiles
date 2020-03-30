@@ -6,8 +6,8 @@ ENV FORCE_UNSAFE_CONFIGURE 1
 
 
 ARG SPFFT_VERSION=0.9.10
-ARG SIRIUS_VERSION=6.5.1
-ARG QE_VERSION=6.5-rc3-sirius
+ARG SIRIUS_VERSION=6.5.2
+ARG QE_VERSION=6.5-rc4-sirius
 ARG MPICH_VERSION=3.1.4
 ENV MPICH_VERSION ${MPICH_VERSION}
 
@@ -89,9 +89,9 @@ RUN wget https://github.com/electronic-structure/q-e-sirius/archive/v$QE_VERSION
 #RUN git clone https://gitlab.com/QEF/q-e.git q-e-sirius-6.5-rc3-sirius
 
 
-RUN cd q-e-sirius-6.5-rc3-sirius && ./configure --with-scalapack --enable-parallel
+RUN cd q-e-sirius-6.5-rc4-sirius && ./configure --with-scalapack --enable-parallel
 
-RUN cd q-e-sirius-6.5-rc3-sirius && \
+RUN cd q-e-sirius-6.5-rc4-sirius && \
     sed -i -e "s/^BLAS_LIBS\ *=\ *.*/BLAS_LIBS =/" make.inc && \
     sed -i -e "s/^LAPACK_LIBS\ *=\ *.*/LAPACK_LIBS =/" make.inc && \
     sed -i -e "s/LAPACK_LIBS_SWITCH = internal/LAPACK_LIBS_SWITCH = external/" make.inc && \
@@ -100,3 +100,4 @@ RUN cd q-e-sirius-6.5-rc3-sirius && \
     sed -i -e "s/^LD_LIBS\ *=\ *.*/LD_LIBS = -L\/usr\/local\/lib -lsirius -Wl,-rpath,\/usr\/local\/lib -L\$(MKLROOT)\/lib\/intel64 -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_gnu_thread -lmkl_core -lmkl_blacs_intelmpi_lp64 -fopenmp/" make.inc && \
     sed -i -e "s/^FFLAGS\ *=\ *.*/FFLAGS = -march=core-avx2 -O3 -march=haswell -fopenmp -ftree-vectorize -fopt-info -fopt-info-missed -fopt-info-vec -fopt-info-loop /" make.inc && \
     make -j 12 pw
+
