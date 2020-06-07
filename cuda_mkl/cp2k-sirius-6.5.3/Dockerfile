@@ -92,7 +92,7 @@ RUN git clone --recursive --single-branch -b master https://github.com/cp2k/cp2k
 
 RUN apt-get install -y libfftw3-dev libfftw3-mpi-dev
 ENV CUDA_PATH "/usr/local/cuda"
-ENV LD_LIBRARY_PATH "${CUDA_PATH}/lib64/stubs:${CUDA_PATH}/lib64:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH "${CUDA_PATH}/targets/x86_64-linux/lib/stubs:${CUDA_PATH}/lib64:${LD_LIBRARY_PATH}"
 
 RUN cd cp2k/tools/toolchain            \
 # check for mpicxx provided by Intel MPI instead of mpic++ provided by MPICH
@@ -105,27 +105,32 @@ RUN cd cp2k/tools/toolchain            \
          --with-elpa=no                \
          --with-fftw3=__SYSTEM__       \
          --with-gsl=__SYSTEM__         \
-         --with-hdf5=__SYSTEM__        \
+         --with-hdf5=install           \
          --with-libxc=__SYSTEM__       \
          --with-reflapack=no           \
          --with-scalapack=no           \
          --with-sirius=__SYSTEM__      \
          --with-spfft=__SYSTEM__       \
          --libint-lmax="${LIBINT_LMAX}"\
-         --gpu-ver="${GPU_VERSION}"    \
-    && rm -rf ./build \
-# add SIRIUS include path in "local_cuda.psmp"
-    && sed -i -e "s#include/cuda#usr/include/sirius#" install/arch/local_cuda.psmp
+#         --gpu-ver="${GPU_VERSION}"    \
+         --enable-cuda=no              \
+         --enable-omp \
+#         --with-libsmm=install \
+    && rm -rf ./build
 
 # Fix for Python3
 RUN ln -s $(which python3) /bin/python
 
+RUN cp cp2k/tools/toolchain/install/arch/local.psmp cp2k/arch
+
+# add SIRIUS include path in "local.psmp"
+RUN sed -i -e "s/-I\/include/-I\/usr\/include\/sirius/" cp2k/arch/local.psmp
+
 # build CP2K
 RUN cd cp2k \
-    && cp tools/toolchain/install/arch/local_cuda.psmp arch \
     && /bin/bash -c "source tools/toolchain/install/setup" \
-    && make -j 20 ARCH=local_cuda VERSION="psmp"
-    #&& rm -rf lib obj
+    && make -j 20 ARCH=local VERSION="psmp" \
+    && rm -rf lib obj
 
 ## add folder with CP2K executables to PATH
 #ENV PATH /usr/local/src/cp2k/exe/local_cuda:$PATH
