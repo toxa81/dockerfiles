@@ -4,41 +4,42 @@ ENV DEBIAN_FRONTEND noninteractive
 
 ENV FORCE_UNSAFE_CONFIGURE 1
 
-RUN apt-get update
+RUN apt-get update && \
+    apt-get install -y apt-utils gcc g++ gfortran git make cmake unzip \
+    vim wget pkg-config python3-pip curl environment-modules tcl m4 \
+    apt-transport-https ca-certificates gnupg software-properties-common
 
-RUN apt-get install -y apt-utils
+ARG MPICH_VERSION=3.1.4
+ENV MPICH_VERSION ${MPICH_VERSION}
 
-# install basic tools
-RUN apt-get install -y gcc g++ gfortran git make cmake unzip \
-  vim wget pkg-config python3-pip curl environment-modules tcl mpich \
-  apt-transport-https ca-certificates gnupg software-properties-common
+# get and build mpich
+RUN wget https://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz && \
+    tar -xzvf mpich-${MPICH_VERSION}.tar.gz && \
+    cd mpich-${MPICH_VERSION} && \
+    ./configure && \
+    make install -j6 && \
+    cd .. && \
+    rm mpich-${MPICH_VERSION}.tar.gz && \
+    rm -rf mpich-${MPICH_VERSION} && \
+    ldconfig
 
-# get latest version of spack
-RUN cd && git clone https://github.com/spack/spack.git
+ENV SPEC "sirius@develop target=haswell build_type=Release +fortran +scalapack +magma +cuda cuda_arch=60 ^mpich@$MPICH_VERSION ^libxc ^spla ^spfft+single_precision ^intel-mkl@2017: threads=openmp ^magma+cuda cuda_arch=60 ^cuda"
 
-ENV SPACK_ROOT /root/spack
+RUN git clone https://github.com/spack/spack.git && \
+    /spack/bin/spack compiler find && \
+    /spack/bin/spack external find --not-buildable cuda && \
+    /spack/bin/spack external find --not-buildable mpich && \
+    /spack/bin/spack install ${SPEC}
 
-ENV SPEC "sirius@develop target=haswell build_type=Release +fortran +scalapack +magma +cuda cuda_arch=60 ^mpich@3.3.2 ^libxc ^spla ^spfft+single_precision ^intel-mkl@2017: threads=openmp ^magma+cuda cuda_arch=60 ^cuda"
+RUN cd && \
+    git clone --recursive -b ristretto https://github.com/electronic-structure/q-e-sirius.git && \
+    cd q-e-sirius && \
+    mkdir build && \
+    cd build && \
+    export sirius_DIR=$(/spack/bin/spack location -i sirius) && \
+    /spack/bin/spack build-env $SPEC -- cmake .. -DQE_ENABLE_OPENMP=1 -DQE_ENABLE_SIRIUS=1 -DQE_ENABLE_SCALAPACK=1 -DQE_ENABLE_LIBXC=1 && \
+    /spack/bin/spack build-env $SPEC -- make pw -j && \
+    cp /root/q-e-sirius/build/bin/pw.x /usr/bin
 
-# add environment variables
-RUN echo "source /root/spack/share/spack/setup-env.sh" >> /etc/profile.d/spack.sh
 
-# update list of spack compilers
-RUN /bin/bash -l -c "spack compiler find"
-# add CUDA
-RUN /bin/bash -l -c "spack external find --not-buildable cuda"
-
-RUN /bin/bash -l -c "spack install --only=dependencies $SPEC"
-
-RUN /bin/bash -l -c "spack install $SPEC"
-
-RUN cd && git clone --recursive -b ristretto https://github.com/electronic-structure/q-e-sirius.git && \
-    cd q-e-sirius && mkdir build
-
-RUN /bin/bash -l -c "cd /root/q-e-sirius/build && spack load m4 && spack load sirius && spack build-env $SPEC -- cmake .. -DQE_ENABLE_OPENMP=1 -DQE_ENABLE_SIRIUS=1 -DQE_ENABLE_SCALAPACK=1 -DQE_ENABLE_LIBXC=1"
-
-RUN /bin/bash -l -c "cd /root/q-e-sirius/build && spack build-env $SPEC -- make pw -j"
-
-RUN cp /root/q-e-sirius/build/bin/pw.x /usr/bin
-
-#ENTRYPOINT ["bash", "-l"]
+#ENTRYPOINT ["bash", "-l", "-c"]
